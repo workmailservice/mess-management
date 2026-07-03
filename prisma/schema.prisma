@@ -1,0 +1,369 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// AUTH (Better Auth compatible) + RBAC
+// ============================================================
+
+model User {
+  id            String     @id @default(cuid())
+  name          String
+  email         String     @unique
+  emailVerified Boolean    @default(false)
+  phone         String?
+  image         String?
+  status        UserStatus @default(ACTIVE)
+
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  sessions Session[]
+  accounts Account[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([roleId])
+  @@index([status])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress String?
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId             String
+  providerId            String
+  password              String?
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([identifier])
+}
+
+model Role {
+  id          String  @id @default(cuid())
+  name        String  @unique // ADMIN, STAFF + custom
+  description String?
+  isSystem    Boolean @default(false) // seeded roles, cannot be deleted
+
+  users       User[]
+  permissions RolePermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Permission {
+  id          String  @id @default(cuid())
+  key         String  @unique // e.g. "customers.create", "payments.record"
+  module      String // e.g. "customers" — for grouping in the settings UI
+  description String?
+
+  roles RolePermission[]
+
+  createdAt DateTime @default(now())
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+// ============================================================
+// CUSTOMERS
+// ============================================================
+
+model Customer {
+  id          String         @id @default(cuid())
+  name        String
+  phone       String         @unique
+  email       String?
+  address     String?
+  monthlyRate Decimal        @db.Decimal(10, 2)
+  joinDate    DateTime       @default(now())
+  status      CustomerStatus @default(ACTIVE)
+
+  attendances Attendance[]
+  invoices    Invoice[]
+  payments    Payment[]
+  reminders   PaymentReminder[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([status])
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+// ============================================================
+// ATTENDANCE (Breakfast / Lunch / Dinner)
+// ============================================================
+
+model Attendance {
+  id         String           @id @default(cuid())
+  customerId String
+  customer   Customer         @relation(fields: [customerId], references: [id])
+  date       DateTime         @db.Date
+  mealType   MealType
+  status     AttendanceStatus @default(TAKEN)
+  markedById String
+
+  createdAt DateTime @default(now())
+
+  @@unique([customerId, date, mealType])
+  @@index([date])
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+}
+
+enum AttendanceStatus {
+  TAKEN
+  SKIPPED
+}
+
+// ============================================================
+// BILLING & PAYMENTS
+// ============================================================
+
+model Invoice {
+  id         String        @id @default(cuid())
+  customerId String
+  customer   Customer      @relation(fields: [customerId], references: [id])
+  month      Int // 1-12
+  year       Int
+  dueDate    DateTime
+  amount     Decimal       @db.Decimal(10, 2)
+  status     InvoiceStatus @default(PENDING)
+
+  items     InvoiceItem[]
+  payments  Payment[]
+  reminders PaymentReminder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([customerId, month, year])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String // "Monthly Charge", "Late Fee", "Adjustment", etc.
+  amount      Decimal @db.Decimal(10, 2)
+
+  @@index([invoiceId])
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  invoiceId      String?
+  invoice        Invoice?      @relation(fields: [invoiceId], references: [id])
+  customerId     String
+  customer       Customer      @relation(fields: [customerId], references: [id])
+  amount         Decimal       @db.Decimal(10, 2)
+  method         PaymentMethod
+  transactionRef String?
+  receivedById   String
+  status         PaymentStatus @default(SUCCESS)
+  paidAt         DateTime      @default(now())
+
+  createdAt DateTime @default(now())
+
+  @@index([customerId])
+  @@index([invoiceId])
+  @@index([paidAt])
+}
+
+enum InvoiceStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  BANK_TRANSFER
+  CARD
+  ONLINE
+}
+
+enum PaymentStatus {
+  SUCCESS
+  PENDING
+  FAILED
+  REFUNDED
+}
+
+// ============================================================
+// PAYMENT REMINDERS (WhatsApp)
+// ============================================================
+
+model PaymentReminder {
+  id         String          @id @default(cuid())
+  customerId String
+  customer   Customer        @relation(fields: [customerId], references: [id])
+  invoiceId  String?
+  invoice    Invoice?        @relation(fields: [invoiceId], references: [id])
+  channel    ReminderChannel @default(WHATSAPP)
+  message    String
+  status     ReminderStatus  @default(SENT)
+  sentById   String
+
+  createdAt DateTime @default(now())
+
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+enum ReminderChannel {
+  WHATSAPP
+}
+
+enum ReminderStatus {
+  SENT
+  FAILED
+}
+
+// ============================================================
+// EXPENSES & INCOME
+// ============================================================
+
+model ExpenseCategory {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  expenses Expense[]
+}
+
+model Expense {
+  id            String          @id @default(cuid())
+  categoryId    String
+  category      ExpenseCategory @relation(fields: [categoryId], references: [id])
+  amount        Decimal         @db.Decimal(10, 2)
+  description   String?
+  vendorName    String?
+  paymentMethod PaymentMethod
+  attachmentUrl String?
+  date          DateTime        @db.Date
+  createdById   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+}
+
+model IncomeCategory {
+  id      String   @id @default(cuid())
+  name    String   @unique
+  incomes Income[]
+}
+
+model Income {
+  id          String         @id @default(cuid())
+  categoryId  String
+  category    IncomeCategory @relation(fields: [categoryId], references: [id])
+  amount      Decimal        @db.Decimal(10, 2)
+  source      String?
+  description String?
+  date        DateTime       @db.Date
+  createdById String
+
+  createdAt DateTime @default(now())
+
+  @@index([date])
+}
+
+// ============================================================
+// AUDIT LOGS (append-only)
+// ============================================================
+
+model AuditLog {
+  id            String  @id @default(cuid())
+  userId        String?
+  action        String // "CREATE" | "UPDATE" | "DELETE" | "LOGIN" ...
+  entityType    String // "Customer" | "Payment" | ...
+  entityId      String?
+  changesBefore Json?
+  changesAfter  Json?
+  ipAddress     String?
+  userAgent     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ============================================================
+// SETTINGS
+// ============================================================
+
+model SystemSetting {
+  id    String @id @default(cuid())
+  key   String @unique // e.g. "upi_id", "whatsapp_api_key", "business_name"
+  value Json
+
+  updatedAt DateTime @updatedAt
+}
