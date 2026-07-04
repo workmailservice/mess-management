@@ -87,6 +87,17 @@ async function main() {
     console.log("Admin already exists, skipping.");
   }
 
+  console.log("Seeding default expense/income categories...");
+  const DEFAULT_EXPENSE_CATEGORIES = ["Groceries", "Rent", "Utilities", "Staff Salary", "Maintenance", "Gas & Fuel", "Other"];
+  const DEFAULT_INCOME_CATEGORIES = ["Other Income", "Refund", "Miscellaneous"];
+
+  for (const name of DEFAULT_EXPENSE_CATEGORIES) {
+    await prisma.expenseCategory.upsert({ where: { name }, update: {}, create: { name } });
+  }
+  for (const name of DEFAULT_INCOME_CATEGORIES) {
+    await prisma.incomeCategory.upsert({ where: { name }, update: {}, create: { name } });
+  }
+
   console.log("Seed complete.");
 }
 
