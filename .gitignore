@@ -46,3 +46,6 @@ next-env.d.ts
 
 # PM2 logs
 /logs
+
+# user-uploaded content (runtime data, not source)
+/public/uploads

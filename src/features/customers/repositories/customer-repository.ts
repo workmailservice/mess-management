@@ -15,6 +15,10 @@ export function findCustomerByPhone(phone: string) {
   return prisma.customer.findFirst({ where: { phone, deletedAt: null } });
 }
 
+export function countActiveCustomers() {
+  return prisma.customer.count({ where: { deletedAt: null, status: "ACTIVE" } });
+}
+
 export function findActiveCustomersForBilling() {
   return prisma.customer.findMany({
     where: { deletedAt: null, status: "ACTIVE" },

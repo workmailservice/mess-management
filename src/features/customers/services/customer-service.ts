@@ -10,6 +10,11 @@ export async function listCustomers() {
   return customerRepo.findManyCustomers();
 }
 
+/** No permission check — an aggregate count only, rendered as a stat on the public homepage. */
+export async function getPublicActiveCustomerCount() {
+  return customerRepo.countActiveCustomers();
+}
+
 export async function createCustomer(input: CustomerInput) {
   await requirePermission(PERMISSIONS.customers.create);
 
