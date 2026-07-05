@@ -6,7 +6,42 @@ import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { cn } from "@/lib/utils"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 
-const Select = SelectPrimitive.Root
+/**
+ * Base UI's `<Select.Value>` only renders the selected item's *label* (vs. the
+ * raw value) when the root is given an `items` map up front — it can't infer
+ * labels from mounted `SelectItem` children after the fact. Every call site
+ * would otherwise need to hand-build that map itself, so instead we derive it
+ * once here by walking the authored JSX tree for `<SelectItem value>label</SelectItem>`
+ * descendants, however deeply they're nested (groups, `.map()`, conditionals).
+ */
+function collectSelectItems(children: React.ReactNode): Record<string, React.ReactNode> {
+  const items: Record<string, React.ReactNode> = {}
+  React.Children.forEach(children, (child) => {
+    if (!React.isValidElement(child)) return
+    const props = child.props as { value?: unknown; children?: React.ReactNode }
+    if (child.type === SelectItem) {
+      if (typeof props.value === "string") items[props.value] = props.children
+      return
+    }
+    if (props.children) Object.assign(items, collectSelectItems(props.children))
+  })
+  return items
+}
+
+function Select<Value = string>({
+  children,
+  items,
+  ...props
+}: SelectPrimitive.Root.Props<Value>) {
+  return (
+    <SelectPrimitive.Root
+      items={items ?? (collectSelectItems(children) as SelectPrimitive.Root.Props<Value>["items"])}
+      {...props}
+    >
+      {children}
+    </SelectPrimitive.Root>
+  )
+}
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   return (
