@@ -182,7 +182,12 @@ This script (run from your dev machine):
 4. `rsync`s the standalone bundle over, deleting stale files from old builds
    but excluding `public/uploads` (admin-uploaded homepage photos, which only
    ever exist on the server) and `.env` (real production secrets)
-5. Runs `prisma migrate deploy` and `pm2 reload ecosystem.config.js` (zero-downtime)
+5. Runs `prisma migrate deploy`, then `pm2 delete mess-management && pm2 start
+   ecosystem.config.js && pm2 save`. This causes a brief (~1s) restart rather
+   than a zero-downtime reload — `pm2 reload` doesn't pick up a changed
+   `script`/`cwd` in the ecosystem file for an already-registered process, it
+   just restarts it with whatever config it started with, so a real
+   delete+start is required whenever the ecosystem file's script path changes.
 
 Pass a different remote path as a second argument if it's not
 `/var/www/mess-management`: `./scripts/deploy.sh root@host /some/other/path`.
@@ -192,5 +197,6 @@ machine without SSH/rsync set up), the old flow still works — `cd
 /var/www/mess-management && git pull && npm install && npx prisma migrate
 deploy && NODE_OPTIONS="--max-old-space-size=2048" npm run build && cp -r
 public .next/standalone/public && cp -r .next/static
-.next/standalone/.next/static && pm2 reload ecosystem.config.js` — it's just
-slower and uses more of the droplet's limited RAM.
+.next/standalone/.next/static && pm2 delete mess-management && pm2 start
+ecosystem.config.js && pm2 save` — it's just slower and uses more of the
+droplet's limited RAM.

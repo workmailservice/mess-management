@@ -38,9 +38,14 @@ echo "==> Syncing build output to $REMOTE:$REMOTE_PATH"
 rsync -az --delete --exclude 'public/uploads' --exclude '.env' \
   .next/standalone/ "$REMOTE:$REMOTE_PATH/.next/standalone/"
 
-echo "==> Migrating and reloading"
+echo "==> Migrating and restarting"
+# `pm2 reload` does NOT pick up a changed script/cwd/args in the ecosystem file
+# for an already-registered process — it just restarts it with the OLD config.
+# delete + start is what actually applies ecosystem.config.js's current contents.
 ssh "$REMOTE" "cd $REMOTE_PATH && \
   [ -e .next/standalone/.env ] || ln -s ../../.env .next/standalone/.env && \
-  npx prisma migrate deploy && mkdir -p logs && pm2 reload ecosystem.config.js"
+  npx prisma migrate deploy && mkdir -p logs && \
+  (pm2 delete mess-management 2>/dev/null || true) && \
+  pm2 start ecosystem.config.js && pm2 save"
 
 echo "==> Done. Check status with: ssh $REMOTE 'pm2 status'"
