@@ -120,14 +120,16 @@ enum UserStatus {
 // ============================================================
 
 model Customer {
-  id          String         @id @default(cuid())
-  name        String
-  phone       String         @unique
-  email       String?
-  address     String?
-  monthlyRate Decimal        @db.Decimal(10, 2)
-  joinDate    DateTime       @default(now())
-  status      CustomerStatus @default(ACTIVE)
+  id             String         @id @default(cuid())
+  name           String
+  phone          String         @unique
+  email          String?
+  address        String?
+  monthlyRate    Decimal        @db.Decimal(10, 2)
+  joinDate       DateTime       @default(now()) @db.Date
+  advancePaid    Decimal        @default(0) @db.Decimal(10, 2)
+  advancePending Decimal        @default(0) @db.Decimal(10, 2)
+  status         CustomerStatus @default(ACTIVE)
 
   attendances Attendance[]
   invoices    Invoice[]
@@ -147,33 +149,22 @@ enum CustomerStatus {
 }
 
 // ============================================================
-// ATTENDANCE (Breakfast / Lunch / Dinner)
+// ATTENDANCE (daily tiffin count)
 // ============================================================
 
 model Attendance {
-  id         String           @id @default(cuid())
+  id         String   @id @default(cuid())
   customerId String
-  customer   Customer         @relation(fields: [customerId], references: [id])
-  date       DateTime         @db.Date
-  mealType   MealType
-  status     AttendanceStatus @default(TAKEN)
+  customer   Customer @relation(fields: [customerId], references: [id])
+  date       DateTime @db.Date
+  count      Int      @default(0)
   markedById String
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@unique([customerId, date, mealType])
+  @@unique([customerId, date])
   @@index([date])
-}
-
-enum MealType {
-  BREAKFAST
-  LUNCH
-  DINNER
-}
-
-enum AttendanceStatus {
-  TAKEN
-  SKIPPED
 }
 
 // ============================================================

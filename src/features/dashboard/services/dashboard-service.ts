@@ -2,12 +2,9 @@ import "server-only";
 import { hasPermission } from "@/lib/auth/permissions";
 import { PERMISSIONS } from "@/constants/permissions";
 import * as dashboardRepo from "@/features/dashboard/repositories/dashboard-repository";
-import { getAttendanceForDate } from "@/features/attendance/services/attendance-service";
+import { getAttendanceForMonth } from "@/features/attendance/services/attendance-service";
 import { getProfitAndLoss, getMonthlyTrend } from "@/features/reports/services/report-service";
-import { todayDateString } from "@/lib/date";
-import type { MealType } from "@/generated/prisma";
-
-const MEAL_TYPES: MealType[] = ["BREAKFAST", "LUNCH", "DINNER"];
+import { todayDateString, todayMonth } from "@/lib/date";
 
 export async function getDashboardData() {
   const [canViewCustomers, canViewAttendance, canViewPayments, canViewExpenses, canViewReports, canViewAuditLogs] =
@@ -20,14 +17,13 @@ export async function getDashboardData() {
       hasPermission(PERMISSIONS.auditLogs.view),
     ]);
 
-  const now = new Date();
-  const month = now.getUTCMonth() + 1;
-  const year = now.getUTCFullYear();
+  const { year, month } = todayMonth();
+  const today = todayDateString();
 
-  const [activeCustomers, attendanceToday, recentPayments, recentExpenses, profitLoss, trend, outstandingBalance, recentActivity] =
+  const [activeCustomers, attendanceThisMonth, recentPayments, recentExpenses, profitLoss, trend, outstandingBalance, recentActivity] =
     await Promise.all([
       canViewCustomers ? dashboardRepo.countActiveCustomers() : null,
-      canViewAttendance ? getAttendanceForDate(todayDateString()) : null,
+      canViewAttendance ? getAttendanceForMonth(year, month) : null,
       canViewPayments ? dashboardRepo.findRecentPayments(5) : null,
       canViewExpenses ? dashboardRepo.findRecentExpenses(5) : null,
       canViewReports ? getProfitAndLoss(month, year) : null,
@@ -36,16 +32,13 @@ export async function getDashboardData() {
       canViewAuditLogs ? dashboardRepo.findRecentAuditLogs(8) : null,
     ]);
 
-  const todaysAttendance = attendanceToday
+  const todaysAttendance = attendanceThisMonth
     ? {
-        totalActive: attendanceToday.customers.length,
-        skippedCounts: MEAL_TYPES.reduce(
-          (acc, mealType) => {
-            acc[mealType] = attendanceToday.records.filter((r) => r.mealType === mealType && r.status === "SKIPPED").length;
-            return acc;
-          },
-          { BREAKFAST: 0, LUNCH: 0, DINNER: 0 } as Record<MealType, number>,
-        ),
+        totalActive: attendanceThisMonth.customers.length,
+        tiffinsToday: attendanceThisMonth.records
+          .filter((record) => record.date === today)
+          .reduce((sum, record) => sum + record.count, 0),
+        tiffinsThisMonth: attendanceThisMonth.records.reduce((sum, record) => sum + record.count, 0),
       }
     : null;
 

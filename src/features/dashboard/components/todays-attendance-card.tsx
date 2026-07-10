@@ -1,20 +1,14 @@
 import Link from "next/link";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import type { MealType } from "@/generated/prisma";
-
-const MEAL_LABELS: Record<MealType, string> = {
-  BREAKFAST: "Breakfast",
-  LUNCH: "Lunch",
-  DINNER: "Dinner",
-};
 
 interface TodaysAttendanceCardProps {
   totalActive: number;
-  skippedCounts: Record<MealType, number>;
+  tiffinsToday: number;
+  tiffinsThisMonth: number;
 }
 
-export function TodaysAttendanceCard({ totalActive, skippedCounts }: TodaysAttendanceCardProps) {
+export function TodaysAttendanceCard({ totalActive, tiffinsToday, tiffinsThisMonth }: TodaysAttendanceCardProps) {
   return (
     <Card>
       <CardHeader>
@@ -27,18 +21,18 @@ export function TodaysAttendanceCard({ totalActive, skippedCounts }: TodaysAtten
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-3 gap-4 text-center">
-          {(Object.keys(MEAL_LABELS) as MealType[]).map((mealType) => {
-            const taking = totalActive - skippedCounts[mealType];
-            return (
-              <div key={mealType}>
-                <p className="text-xl font-semibold">
-                  {taking}
-                  <span className="text-sm font-normal text-muted-foreground">/{totalActive}</span>
-                </p>
-                <p className="text-xs text-muted-foreground">{MEAL_LABELS[mealType]}</p>
-              </div>
-            );
-          })}
+          <div>
+            <p className="text-xl font-semibold">{totalActive}</p>
+            <p className="text-xs text-muted-foreground">Active customers</p>
+          </div>
+          <div>
+            <p className="text-xl font-semibold">{tiffinsToday}</p>
+            <p className="text-xs text-muted-foreground">Tiffins today</p>
+          </div>
+          <div>
+            <p className="text-xl font-semibold">{tiffinsThisMonth}</p>
+            <p className="text-xs text-muted-foreground">Tiffins this month</p>
+          </div>
         </div>
       </CardContent>
     </Card>

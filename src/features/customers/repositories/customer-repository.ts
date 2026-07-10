@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { parseDateOnly } from "@/lib/date";
 
 export function findManyCustomers() {
   return prisma.customer.findMany({
@@ -33,8 +34,11 @@ export function createCustomer(data: {
   email: string | null;
   address: string | null;
   monthlyRate: number;
+  joinDate: string;
+  advancePaid: number;
+  advancePending: number;
 }) {
-  return prisma.customer.create({ data });
+  return prisma.customer.create({ data: { ...data, joinDate: parseDateOnly(data.joinDate) } });
 }
 
 export function updateCustomer(
@@ -45,10 +49,13 @@ export function updateCustomer(
     email: string | null;
     address: string | null;
     monthlyRate: number;
+    joinDate: string;
+    advancePaid: number;
+    advancePending: number;
     status: "ACTIVE" | "INACTIVE";
   },
 ) {
-  return prisma.customer.update({ where: { id }, data });
+  return prisma.customer.update({ where: { id }, data: { ...data, joinDate: parseDateOnly(data.joinDate) } });
 }
 
 export function softDeleteCustomer(id: string) {

@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCreateCustomer, useUpdateCustomer } from "@/features/customers/hooks/use-customers";
 import { customerSchema, type CustomerInput } from "@/features/customers/schemas/customer-schema";
 import type { CustomerRow } from "@/features/customers/components/columns";
+import { todayDateString } from "@/lib/date";
 
 interface CustomerFormDialogProps {
   open: boolean;
@@ -27,7 +28,17 @@ interface CustomerFormDialogProps {
   customer?: CustomerRow | null;
 }
 
-const EMPTY_VALUES: CustomerInput = { name: "", phone: "", email: "", address: "", monthlyRate: 0, status: "ACTIVE" };
+const EMPTY_VALUES: CustomerInput = {
+  name: "",
+  phone: "",
+  email: "",
+  address: "",
+  monthlyRate: 0,
+  joinDate: todayDateString(),
+  advancePaid: 0,
+  advancePending: 0,
+  status: "ACTIVE",
+};
 
 export function CustomerFormDialog({ open, onOpenChange, customer }: CustomerFormDialogProps) {
   const isEdit = !!customer;
@@ -54,6 +65,9 @@ export function CustomerFormDialog({ open, onOpenChange, customer }: CustomerFor
             email: customer.email ?? "",
             address: customer.address ?? "",
             monthlyRate: Number(customer.monthlyRate),
+            joinDate: customer.joinDate.slice(0, 10),
+            advancePaid: Number(customer.advancePaid),
+            advancePending: Number(customer.advancePending),
             status: customer.status,
           }
         : EMPTY_VALUES,
@@ -107,6 +121,36 @@ export function CustomerFormDialog({ open, onOpenChange, customer }: CustomerFor
               <FieldLabel htmlFor="customer-rate">Monthly rate (₹)</FieldLabel>
               <Input id="customer-rate" type="number" step="0.01" min="0" {...register("monthlyRate", { valueAsNumber: true })} />
               <FieldError errors={[errors.monthlyRate]} />
+            </Field>
+
+            <Field data-invalid={!!errors.joinDate}>
+              <FieldLabel htmlFor="customer-join-date">Mess joining date</FieldLabel>
+              <Input id="customer-join-date" type="date" {...register("joinDate")} />
+              <FieldError errors={[errors.joinDate]} />
+            </Field>
+
+            <Field data-invalid={!!errors.advancePaid}>
+              <FieldLabel htmlFor="customer-advance-paid">Advance paid (₹)</FieldLabel>
+              <Input
+                id="customer-advance-paid"
+                type="number"
+                step="0.01"
+                min="0"
+                {...register("advancePaid", { valueAsNumber: true })}
+              />
+              <FieldError errors={[errors.advancePaid]} />
+            </Field>
+
+            <Field data-invalid={!!errors.advancePending}>
+              <FieldLabel htmlFor="customer-advance-pending">Advance pending (₹)</FieldLabel>
+              <Input
+                id="customer-advance-pending"
+                type="number"
+                step="0.01"
+                min="0"
+                {...register("advancePending", { valueAsNumber: true })}
+              />
+              <FieldError errors={[errors.advancePending]} />
             </Field>
 
             {isEdit && (

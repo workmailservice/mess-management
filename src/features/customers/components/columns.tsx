@@ -20,6 +20,9 @@ export interface CustomerRow {
   email: string | null;
   address: string | null;
   monthlyRate: string;
+  joinDate: string;
+  advancePaid: string;
+  advancePending: string;
   status: "ACTIVE" | "INACTIVE";
 }
 
@@ -45,6 +48,21 @@ export function buildCustomerColumns(
       accessorKey: "monthlyRate",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Monthly Rate" />,
       cell: ({ row }) => formatCurrency(row.original.monthlyRate),
+    },
+    {
+      accessorKey: "joinDate",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Join Date" />,
+      cell: ({ row }) => new Date(row.original.joinDate).toLocaleDateString("en-IN", { timeZone: "UTC" }),
+    },
+    {
+      accessorKey: "advancePaid",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Advance Paid" />,
+      cell: ({ row }) => formatCurrency(row.original.advancePaid),
+    },
+    {
+      accessorKey: "advancePending",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Advance Pending" />,
+      cell: ({ row }) => formatCurrency(row.original.advancePending),
     },
     {
       accessorKey: "status",

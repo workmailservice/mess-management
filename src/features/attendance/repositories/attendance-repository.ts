@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { parseDateOnly } from "@/lib/date";
-import type { MealType, AttendanceStatus } from "@/generated/prisma";
+import { parseDateOnly, dateStringForDay, daysInMonth } from "@/lib/date";
 
 export function findActiveCustomersForAttendance() {
   return prisma.customer.findMany({
@@ -10,30 +9,20 @@ export function findActiveCustomersForAttendance() {
   });
 }
 
-export function findAttendanceForDate(date: string) {
+export function findAttendanceForMonth(year: number, month: number) {
+  const from = parseDateOnly(dateStringForDay(year, month, 1));
+  const to = parseDateOnly(dateStringForDay(year, month, daysInMonth(year, month)));
   return prisma.attendance.findMany({
-    where: { date: parseDateOnly(date) },
-    select: { customerId: true, mealType: true, status: true },
+    where: { date: { gte: from, lte: to } },
+    select: { customerId: true, date: true, count: true },
   });
 }
 
-export function upsertAttendance(input: {
-  customerId: string;
-  date: string;
-  mealType: MealType;
-  status: AttendanceStatus;
-  markedById: string;
-}) {
+export function upsertAttendance(input: { customerId: string; date: string; count: number; markedById: string }) {
   const date = parseDateOnly(input.date);
   return prisma.attendance.upsert({
-    where: { customerId_date_mealType: { customerId: input.customerId, date, mealType: input.mealType } },
-    update: { status: input.status, markedById: input.markedById },
-    create: {
-      customerId: input.customerId,
-      date,
-      mealType: input.mealType,
-      status: input.status,
-      markedById: input.markedById,
-    },
+    where: { customerId_date: { customerId: input.customerId, date } },
+    update: { count: input.count, markedById: input.markedById },
+    create: { customerId: input.customerId, date, count: input.count, markedById: input.markedById },
   });
 }

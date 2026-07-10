@@ -8,8 +8,8 @@ function actionError(err: unknown) {
   return err instanceof Error ? err.message : "Something went wrong.";
 }
 
-export async function getAttendanceForDateAction(date: string) {
-  return attendanceService.getAttendanceForDate(date);
+export async function getAttendanceForMonthAction(year: number, month: number) {
+  return attendanceService.getAttendanceForMonth(year, month);
 }
 
 export async function setAttendanceAction(input: SetAttendanceInput) {

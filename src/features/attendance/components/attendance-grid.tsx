@@ -2,14 +2,13 @@
 
 import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Switch } from "@/components/ui/switch";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { DateNavigator } from "@/features/attendance/components/date-navigator";
-import { MealSummaryCards } from "@/features/attendance/components/meal-summary-cards";
-import { useAttendanceForDate, useSetAttendance } from "@/features/attendance/hooks/use-attendance";
-import { todayDateString } from "@/lib/date";
-import type { MealType, AttendanceStatus } from "@/generated/prisma";
+import { MonthNavigator } from "@/features/attendance/components/month-navigator";
+import { AttendanceSummaryCards } from "@/features/attendance/components/attendance-summary-cards";
+import { AttendanceDayCell } from "@/features/attendance/components/attendance-day-cell";
+import { useAttendanceForMonth, useSetAttendance } from "@/features/attendance/hooks/use-attendance";
+import { todayMonth, daysInMonth, dateStringForDay, todayDateString } from "@/lib/date";
 
 interface AttendanceRow {
   id: string;
@@ -17,27 +16,35 @@ interface AttendanceRow {
   phone: string;
 }
 
-const MEAL_TYPES: MealType[] = ["BREAKFAST", "LUNCH", "DINNER"];
-
-function MealCell({
-  status,
-  disabled,
-  onToggle,
-}: {
-  status: AttendanceStatus;
-  disabled: boolean;
-  onToggle: (checked: boolean) => void;
-}) {
-  return (
-    <Switch checked={status === "TAKEN"} disabled={disabled} onCheckedChange={onToggle} aria-label="Toggle meal taken" />
-  );
-}
-
 function buildAttendanceColumns(
-  statusFor: (customerId: string, mealType: MealType) => AttendanceStatus,
-  onToggle: (customerId: string, mealType: MealType, checked: boolean) => void,
+  year: number,
+  month: number,
+  dayCount: number,
+  cumulativeFor: (customerId: string, day: number) => number,
+  rawFor: (customerId: string, day: number) => number,
+  onSave: (customerId: string, day: number, value: number) => void,
   pendingKey: string | null,
+  today: string,
 ): ColumnDef<AttendanceRow>[] {
+  const dayColumns: ColumnDef<AttendanceRow>[] = Array.from({ length: dayCount }, (_, index) => {
+    const day = index + 1;
+    const date = dateStringForDay(year, month, day);
+    const locked = date > today;
+    return {
+      id: `day-${day}`,
+      header: String(day),
+      cell: ({ row }) => (
+        <AttendanceDayCell
+          cumulative={cumulativeFor(row.original.id, day)}
+          rawValue={rawFor(row.original.id, day)}
+          disabled={pendingKey === `${row.original.id}:${date}`}
+          locked={locked}
+          onSave={(value) => onSave(row.original.id, day, value)}
+        />
+      ),
+    };
+  });
+
   return [
     {
       accessorKey: "name",
@@ -48,65 +55,69 @@ function buildAttendanceColumns(
       header: "Phone",
       cell: ({ row }) => <span className="text-muted-foreground">{row.original.phone}</span>,
     },
-    ...MEAL_TYPES.map(
-      (mealType): ColumnDef<AttendanceRow> => ({
-        id: mealType,
-        header: mealType.charAt(0) + mealType.slice(1).toLowerCase(),
-        cell: ({ row }) => (
-          <MealCell
-            status={statusFor(row.original.id, mealType)}
-            disabled={pendingKey === `${row.original.id}:${mealType}`}
-            onToggle={(checked) => onToggle(row.original.id, mealType, checked)}
-          />
-        ),
-      }),
-    ),
+    ...dayColumns,
   ];
 }
 
 export function AttendanceGrid() {
-  const [date, setDate] = useState(todayDateString());
-  const { data, isLoading, isError, refetch } = useAttendanceForDate(date);
-  const setAttendance = useSetAttendance(date);
+  const [{ year, month }, setPeriod] = useState(todayMonth());
+  const { data, isLoading, isError, refetch } = useAttendanceForMonth(year, month);
+  const setAttendance = useSetAttendance(year, month);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
 
-  const statusMap = useMemo(() => {
-    const map = new Map<string, AttendanceStatus>();
+  const dayCount = daysInMonth(year, month);
+
+  const incrementMap = useMemo(() => {
+    const map = new Map<string, number>();
     for (const record of data?.records ?? []) {
-      map.set(`${record.customerId}:${record.mealType}`, record.status);
+      map.set(`${record.customerId}:${record.date}`, record.count);
     }
     return map;
   }, [data]);
 
-  const statusFor = (customerId: string, mealType: MealType): AttendanceStatus =>
-    statusMap.get(`${customerId}:${mealType}`) ?? "TAKEN";
+  const cumulativeByCustomer = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const customer of data?.customers ?? []) {
+      const running: number[] = [];
+      let total = 0;
+      for (let day = 1; day <= dayCount; day++) {
+        total += incrementMap.get(`${customer.id}:${dateStringForDay(year, month, day)}`) ?? 0;
+        running.push(total);
+      }
+      map.set(customer.id, running);
+    }
+    return map;
+  }, [data, incrementMap, dayCount, year, month]);
 
-  async function handleToggle(customerId: string, mealType: MealType, checked: boolean) {
-    const key = `${customerId}:${mealType}`;
+  const cumulativeFor = (customerId: string, day: number) => cumulativeByCustomer.get(customerId)?.[day - 1] ?? 0;
+  const rawFor = (customerId: string, day: number) =>
+    incrementMap.get(`${customerId}:${dateStringForDay(year, month, day)}`) ?? 0;
+
+  async function handleSave(customerId: string, day: number, value: number) {
+    const date = dateStringForDay(year, month, day);
+    const key = `${customerId}:${date}`;
     setPendingKey(key);
-    await setAttendance.mutateAsync({ customerId, date, mealType, status: checked ? "TAKEN" : "SKIPPED" });
+    await setAttendance.mutateAsync({ customerId, date, count: value });
     setPendingKey(null);
   }
 
   const columns = useMemo(
-    () => buildAttendanceColumns(statusFor, handleToggle, pendingKey),
+    () => buildAttendanceColumns(year, month, dayCount, cumulativeFor, rawFor, handleSave, pendingKey, todayDateString()),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [statusMap, pendingKey, date],
+    [cumulativeByCustomer, incrementMap, pendingKey, year, month, dayCount],
   );
 
-  const skippedCounts = useMemo(() => {
-    const counts: Record<MealType, number> = { BREAKFAST: 0, LUNCH: 0, DINNER: 0 };
-    for (const record of data?.records ?? []) {
-      if (record.status === "SKIPPED") counts[record.mealType]++;
-    }
-    return counts;
-  }, [data]);
+  const totalTiffinsThisMonth = useMemo(() => {
+    let total = 0;
+    for (const count of incrementMap.values()) total += count;
+    return total;
+  }, [incrementMap]);
 
   return (
     <div className="space-y-6">
-      <DateNavigator date={date} onChange={setDate} />
+      <MonthNavigator year={year} month={month} onChange={setPeriod} />
 
-      <MealSummaryCards totalActive={data?.customers.length ?? 0} skippedCounts={skippedCounts} />
+      <AttendanceSummaryCards totalActive={data?.customers.length ?? 0} totalTiffinsThisMonth={totalTiffinsThisMonth} />
 
       <DataTable
         columns={columns}

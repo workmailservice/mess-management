@@ -29,6 +29,9 @@ export async function createCustomer(input: CustomerInput) {
     email: input.email || null,
     address: input.address || null,
     monthlyRate: input.monthlyRate,
+    joinDate: input.joinDate,
+    advancePaid: input.advancePaid,
+    advancePending: input.advancePending,
   });
 
   await logAudit({ action: "CREATE", entityType: "Customer", entityId: customer.id, after: { name: input.name, phone: input.phone } });
@@ -52,6 +55,9 @@ export async function updateCustomer(id: string, input: CustomerInput) {
     email: input.email || null,
     address: input.address || null,
     monthlyRate: input.monthlyRate,
+    joinDate: input.joinDate,
+    advancePaid: input.advancePaid,
+    advancePending: input.advancePending,
     status: input.status,
   });
 

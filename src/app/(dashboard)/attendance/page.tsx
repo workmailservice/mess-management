@@ -13,8 +13,8 @@ export default async function AttendancePage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Attendance</h1>
         <p className="text-sm text-muted-foreground">
-          Track breakfast, lunch, and dinner attendance. Everyone defaults to taken — toggle off for a customer who
-          skipped a meal.
+          Track each customer&apos;s running tiffin count for the month. Click a day to add the tiffins taken that
+          day — the cell shows the running total.
         </p>
       </div>
       <AttendanceGrid />

@@ -33,7 +33,11 @@ export default async function DashboardPage() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         {data.todaysAttendance && (
-          <TodaysAttendanceCard totalActive={data.todaysAttendance.totalActive} skippedCounts={data.todaysAttendance.skippedCounts} />
+          <TodaysAttendanceCard
+            totalActive={data.todaysAttendance.totalActive}
+            tiffinsToday={data.todaysAttendance.tiffinsToday}
+            tiffinsThisMonth={data.todaysAttendance.tiffinsThisMonth}
+          />
         )}
 
         {data.trend && (

@@ -11,8 +11,14 @@ function actionError(err: unknown) {
 
 export async function getCustomersAction() {
   const customers = await customerService.listCustomers();
-  // Prisma's Decimal instances aren't safely serializable across the Server Action boundary.
-  return customers.map((customer) => ({ ...customer, monthlyRate: customer.monthlyRate.toString() }));
+  // Prisma's Decimal/Date instances aren't safely serializable across the Server Action boundary.
+  return customers.map((customer) => ({
+    ...customer,
+    monthlyRate: customer.monthlyRate.toString(),
+    advancePaid: customer.advancePaid.toString(),
+    advancePending: customer.advancePending.toString(),
+    joinDate: customer.joinDate.toISOString(),
+  }));
 }
 
 export async function createCustomerAction(input: CustomerInput) {

@@ -13,6 +13,9 @@ export const customerSchema = z.object({
   monthlyRate: z
     .number({ error: "Monthly rate is required" })
     .positive("Monthly rate must be greater than 0"),
+  joinDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date"),
+  advancePaid: z.number({ error: "Advance paid is required" }).min(0, "Advance paid cannot be negative"),
+  advancePending: z.number({ error: "Advance pending is required" }).min(0, "Advance pending cannot be negative"),
   status: z.enum(["ACTIVE", "INACTIVE"]),
 });
 export type CustomerInput = z.infer<typeof customerSchema>;
