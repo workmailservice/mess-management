@@ -27,3 +27,15 @@ export function buildReminderMessage(params: {
 export function buildWhatsAppLink(phone: string, message: string) {
   return `https://wa.me/${toWaMeDigits(phone)}?text=${encodeURIComponent(message)}`;
 }
+
+export function buildAttendanceMessage(params: {
+  customerName: string;
+  monthLabel: string;
+  totalTiffins: number;
+  businessName: string;
+}) {
+  return (
+    `Hi ${params.customerName}, your tiffin attendance for ${params.monthLabel} is ` +
+    `${params.totalTiffins} tiffin${params.totalTiffins === 1 ? "" : "s"} so far. Thank you! - ${params.businessName}`
+  );
+}

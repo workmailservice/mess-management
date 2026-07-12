@@ -2,13 +2,17 @@
 
 import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { Send } from "lucide-react";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { Button } from "@/components/ui/button";
 import { MonthNavigator } from "@/features/attendance/components/month-navigator";
 import { AttendanceSummaryCards } from "@/features/attendance/components/attendance-summary-cards";
 import { AttendanceDayCell } from "@/features/attendance/components/attendance-day-cell";
 import { useAttendanceForMonth, useSetAttendance } from "@/features/attendance/hooks/use-attendance";
-import { todayMonth, daysInMonth, dateStringForDay, todayDateString } from "@/lib/date";
+import { usePaymentSettings } from "@/features/settings/hooks/use-payment-settings";
+import { buildAttendanceMessage, buildWhatsAppLink } from "@/lib/whatsapp";
+import { todayMonth, daysInMonth, dateStringForDay, todayDateString, formatMonthLabel } from "@/lib/date";
 
 interface AttendanceRow {
   id: string;
@@ -25,6 +29,7 @@ function buildAttendanceColumns(
   onSave: (customerId: string, day: number, value: number) => void,
   pendingKey: string | null,
   today: string,
+  onSendAttendance: (customerId: string, name: string, phone: string) => void,
 ): ColumnDef<AttendanceRow>[] {
   const dayColumns: ColumnDef<AttendanceRow>[] = Array.from({ length: dayCount }, (_, index) => {
     const day = index + 1;
@@ -56,12 +61,26 @@ function buildAttendanceColumns(
       cell: ({ row }) => <span className="text-muted-foreground">{row.original.phone}</span>,
     },
     ...dayColumns,
+    {
+      id: "actions",
+      cell: ({ row }) => (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => onSendAttendance(row.original.id, row.original.name, row.original.phone)}
+        >
+          <Send className="size-3.5" />
+          Send
+        </Button>
+      ),
+    },
   ];
 }
 
 export function AttendanceGrid() {
   const [{ year, month }, setPeriod] = useState(todayMonth());
   const { data, isLoading, isError, refetch } = useAttendanceForMonth(year, month);
+  const { data: paymentSettings } = usePaymentSettings();
   const setAttendance = useSetAttendance(year, month);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
 
@@ -101,10 +120,33 @@ export function AttendanceGrid() {
     setPendingKey(null);
   }
 
+  function handleSendAttendance(customerId: string, name: string, phone: string) {
+    const totalTiffins = cumulativeByCustomer.get(customerId)?.[dayCount - 1] ?? 0;
+    const message = buildAttendanceMessage({
+      customerName: name,
+      monthLabel: formatMonthLabel(year, month),
+      totalTiffins,
+      businessName: paymentSettings?.businessName ?? "Mess Management",
+    });
+    // Open first (synchronously, in the click handler) so browsers don't block the popup.
+    window.open(buildWhatsAppLink(phone, message), "_blank", "noopener,noreferrer");
+  }
+
   const columns = useMemo(
-    () => buildAttendanceColumns(year, month, dayCount, cumulativeFor, rawFor, handleSave, pendingKey, todayDateString()),
+    () =>
+      buildAttendanceColumns(
+        year,
+        month,
+        dayCount,
+        cumulativeFor,
+        rawFor,
+        handleSave,
+        pendingKey,
+        todayDateString(),
+        handleSendAttendance,
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cumulativeByCustomer, incrementMap, pendingKey, year, month, dayCount],
+    [cumulativeByCustomer, incrementMap, pendingKey, year, month, dayCount, paymentSettings],
   );
 
   const totalTiffinsThisMonth = useMemo(() => {
