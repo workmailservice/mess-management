@@ -18,6 +18,15 @@ export function findAttendanceForMonth(year: number, month: number) {
   });
 }
 
+export function findAttendanceForCustomerMonth(customerId: string, year: number, month: number) {
+  const from = parseDateOnly(dateStringForDay(year, month, 1));
+  const to = parseDateOnly(dateStringForDay(year, month, daysInMonth(year, month)));
+  return prisma.attendance.findMany({
+    where: { customerId, date: { gte: from, lte: to } },
+    select: { date: true, count: true },
+  });
+}
+
 export function upsertAttendance(input: { customerId: string; date: string; count: number; markedById: string }) {
   const date = parseDateOnly(input.date);
   return prisma.attendance.upsert({

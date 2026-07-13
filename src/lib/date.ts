@@ -53,6 +53,11 @@ export function formatMonthLabel(year: number, month: number): string {
   });
 }
 
+/** 0 = Sunday ... 6 = Saturday. */
+export function dayOfWeek(dateString: string): number {
+  return parseDateOnly(dateString).getUTCDay();
+}
+
 export function addMonths(year: number, month: number, delta: number): { year: number; month: number } {
   const total = year * 12 + (month - 1) + delta;
   return { year: Math.floor(total / 12), month: (total % 12) + 1 };

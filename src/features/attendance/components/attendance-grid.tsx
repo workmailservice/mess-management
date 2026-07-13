@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Send } from "lucide-react";
+import { Send, FileDown } from "lucide-react";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,10 @@ import { AttendanceDayCell } from "@/features/attendance/components/attendance-d
 import { useAttendanceForMonth, useSetAttendance } from "@/features/attendance/hooks/use-attendance";
 import { usePaymentSettings } from "@/features/settings/hooks/use-payment-settings";
 import { buildAttendanceMessage, buildWhatsAppLink } from "@/lib/whatsapp";
-import { todayMonth, daysInMonth, dateStringForDay, todayDateString, formatMonthLabel } from "@/lib/date";
+import { todayMonth, daysInMonth, dateStringForDay, todayDateString, formatMonthLabel, dayOfWeek } from "@/lib/date";
+import { cn } from "@/lib/utils";
+
+const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 interface AttendanceRow {
   id: string;
@@ -35,17 +38,33 @@ function buildAttendanceColumns(
     const day = index + 1;
     const date = dateStringForDay(year, month, day);
     const locked = date > today;
+    const weekday = dayOfWeek(date);
+    const isWeekend = weekday === 0 || weekday === 6;
+    const isToday = date === today;
+    const columnClassName = cn(
+      "text-center",
+      isWeekend && "bg-muted/50",
+      isToday && "bg-primary/10 outline outline-primary/40 -outline-offset-1",
+    );
     return {
       id: `day-${day}`,
-      header: String(day),
+      header: () => (
+        <div className="flex flex-col items-center leading-tight">
+          <span>{day}</span>
+          <span className="text-[10px] font-normal text-muted-foreground">{WEEKDAY_LABELS[weekday]}</span>
+        </div>
+      ),
+      meta: { headerClassName: columnClassName, cellClassName: columnClassName },
       cell: ({ row }) => (
-        <AttendanceDayCell
-          cumulative={cumulativeFor(row.original.id, day)}
-          rawValue={rawFor(row.original.id, day)}
-          disabled={pendingKey === `${row.original.id}:${date}`}
-          locked={locked}
-          onSave={(value) => onSave(row.original.id, day, value)}
-        />
+        <div className="flex justify-center">
+          <AttendanceDayCell
+            cumulative={cumulativeFor(row.original.id, day)}
+            rawValue={rawFor(row.original.id, day)}
+            disabled={pendingKey === `${row.original.id}:${date}`}
+            locked={locked}
+            onSave={(value) => onSave(row.original.id, day, value)}
+          />
+        </div>
       ),
     };
   });
@@ -64,14 +83,25 @@ function buildAttendanceColumns(
     {
       id: "actions",
       cell: ({ row }) => (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => onSendAttendance(row.original.id, row.original.name, row.original.phone)}
-        >
-          <Send className="size-3.5" />
-          Send
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onSendAttendance(row.original.id, row.original.name, row.original.phone)}
+          >
+            <Send className="size-3.5" />
+            Send
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            render={<a href={`/api/v1/attendance/${row.original.id}/pdf?year=${year}&month=${month}`} target="_blank" rel="noreferrer" />}
+            nativeButton={false}
+          >
+            <FileDown className="size-3.5" />
+            PDF
+          </Button>
+        </div>
       ),
     },
   ];
