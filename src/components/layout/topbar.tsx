@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -49,12 +50,14 @@ export function Topbar({ user }: TopbarProps) {
             </Avatar>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">{user.name}</span>
-                <span className="text-xs text-muted-foreground">{user.email}</span>
-              </div>
-            </DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">{user.name}</span>
+                  <span className="text-xs text-muted-foreground">{user.email}</span>
+                </div>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => router.push("/profile")}>
               <UserIcon className="size-4" />
